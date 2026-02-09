@@ -1,0 +1,61 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                   Int       @id @default(autoincrement())
+  username             String    @unique @db.VarChar(50)
+  email                String    @unique @db.VarChar(255)
+  passwordHash         String    @db.VarChar(255)
+  secretQuestion       String    @db.VarChar(255)
+  secretAnswerHash     String    @db.VarChar(255)
+  createdAt            DateTime  @default(now())
+  lastLoginAt          DateTime?
+  failedLoginAttempts  Int       @default(0)
+  lockedUntil          DateTime?
+  
+  posts       Post[]
+  rateLimits  RateLimit[]
+  
+  @@index([username])
+  @@index([email])
+  @@map("users")
+}
+
+model Post {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  content   String   @db.VarChar(1000)
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([createdAt(sort: Desc)])
+  @@index([userId])
+  @@map("posts")
+}
+
+model RateLimit {
+  id            Int      @id @default(autoincrement())
+  userId        Int      @map("user_id")
+  minuteStart   DateTime @map("minute_start")
+  postsInMinute Int      @default(0) @map("posts_in_minute")
+  hourStart     DateTime @map("hour_start")
+  postsInHour   Int      @default(0) @map("posts_in_hour")
+  dateRecorded  DateTime @map("date_recorded") @db.Date
+  postsInDay    Int      @default(0) @map("posts_in_day")
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, dateRecorded], name: "unique_user_date")
+  @@index([userId, dateRecorded])
+  @@map("rate_limits")
+}
