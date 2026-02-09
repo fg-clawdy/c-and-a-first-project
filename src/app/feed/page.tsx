@@ -81,6 +81,7 @@ export default function FeedPage() {
       router.push('/login')
       return
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsLoading(true)
     Promise.all([fetchPosts(1), fetchRateLimits()]).finally(() => setIsLoading(false))
   }, [authLoading, isAuthenticated, router, fetchPosts, fetchRateLimits])
