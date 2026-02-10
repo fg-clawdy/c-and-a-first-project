@@ -47,12 +47,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Username uniqueness check (case-insensitive)
-    const existingUser = await prisma.user.findFirst({
+    // Username uniqueness check (case-insensitive via lowercase)
+    const existingUser = await prisma.users.findFirst({
       where: {
         OR: [
-          { username: { equals: username, mode: 'insensitive' } },
-          { email: { equals: email, mode: 'insensitive' } }
+          { username: username.toLowerCase().trim() },
+          { email: email.toLowerCase().trim() }
         ]
       }
     })
@@ -69,13 +69,13 @@ export async function POST(request: NextRequest) {
     const secretAnswerHash = await hashPassword(secretAnswer.toLowerCase().trim())
 
     // Create user
-    const user = await prisma.user.create({
+    const user = await prisma.users.create({
       data: {
         username: username.toLowerCase().trim(),
         email: email.toLowerCase().trim(),
-        passwordHash,
-        secretQuestion,
-        secretAnswerHash
+        password_hash: passwordHash,
+        secret_question: secretQuestion,
+        secret_answer_hash: secretAnswerHash
       }
     })
 

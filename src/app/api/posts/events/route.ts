@@ -29,14 +29,14 @@ export async function GET(request: NextRequest) {
       // Check for new posts every 2 seconds
       const checkInterval = setInterval(async () => {
         try {
-          const newPosts = await prisma.post.findMany({
+          const newPosts = await prisma.posts.findMany({
             where: {
-              createdAt: { gt: lastCheck }
+              created_at: { gt: lastCheck }
             },
             include: {
               user: { select: { username: true } }
             },
-            orderBy: { createdAt: 'asc' }
+            orderBy: { created_at: 'asc' }
           })
           
           if (newPosts.length > 0) {
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
                   id: post.id,
                   content: post.content,
                   author: post.user.username,
-                  createdAt: post.createdAt.toISOString()
+                  created_at: post.created_at.toISOString()
                 }
               }
               controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`))

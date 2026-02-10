@@ -14,9 +14,9 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const user = await prisma.user.findFirst({
+    const user = await prisma.users.findFirst({
       where: {
-        username: { equals: username, mode: 'insensitive' }
+        username: username.toLowerCase().trim()
       }
     })
 
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: { secretQuestion: user.secretQuestion }
+      data: { secretQuestion: user.secret_question }
     })
 
   } catch (error) {
@@ -77,9 +77,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Find user
-    const user = await prisma.user.findFirst({
+    const user = await prisma.users.findFirst({
       where: {
-        username: { equals: username, mode: 'insensitive' }
+        username: username.toLowerCase().trim()
       }
     })
 
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
     // Verify secret answer
     const validAnswer = await verifyPassword(
       secretAnswer.toLowerCase().trim(),
-      user.secretAnswerHash
+      user.secret_answer_hash
     )
 
     if (!validAnswer) {
@@ -107,12 +107,12 @@ export async function POST(request: NextRequest) {
     const newPasswordHash = await hashPassword(newPassword)
 
     // Update password and reset lock status
-    await prisma.user.update({
+    await prisma.users.update({
       where: { id: user.id },
       data: {
-        passwordHash: newPasswordHash,
-        failedLoginAttempts: 0,
-        lockedUntil: null
+        password_hash: newPasswordHash,
+        failed_login_attempts: 0,
+        locked_until: null
       }
     })
 

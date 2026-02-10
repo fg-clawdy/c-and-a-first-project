@@ -7,12 +7,12 @@ export const RATE_LIMITS = {
 }
 
 interface RateLimitState {
-  postsInMinute: number
-  postsInHour: number
-  postsInDay: number
-  minuteReset: Date
-  hourReset: Date
-  dayReset: Date
+  posts_in_minute: number
+  posts_in_hour: number
+  posts_in_day: number
+  minute_reset: Date
+  hour_reset: Date
+  day_reset: Date
 }
 
 export async function getRateLimitState(userId: number): Promise<RateLimitState> {
@@ -20,77 +20,93 @@ export async function getRateLimitState(userId: number): Promise<RateLimitState>
   const minuteStart = new Date(now.getTime() - (now.getTime() % 60000))
   const hourStart = new Date(now.getTime() - (now.getTime() % 3600000))
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  
+
   // Find or create rate limit record
-  let rateLimit = await prisma.rateLimit.findUnique({
+  let rateLimit = await prisma.rate_limits.findUnique({
     where: {
       unique_user_date: {
-        userId,
-        dateRecorded: today
+        user_id: userId,
+        date_recorded: today
       }
     }
   })
-  
+
   // Create new record if doesn't exist or windows have changed
   if (!rateLimit) {
     // Clean up old records for this user first
-    await prisma.rateLimit.deleteMany({
-      where: { userId }
+    await prisma.rate_limits.deleteMany({
+      where: { user_id: userId }
     })
-    
-    rateLimit = await prisma.rateLimit.create({
+    rateLimit = await prisma.rate_limits.create({
       data: {
-        userId,
-        minuteStart,
-        hourStart,
-        dateRecorded: today,
-        postsInMinute: 0,
-        postsInHour: 0,
-        postsInDay: 0
+        user_id: userId,
+        minute_start: minuteStart,
+        hour_start: hourStart,
+        date_recorded: today,
+        posts_in_minute: 0,
+        posts_in_hour: 0,
+        posts_in_day: 0
       }
     })
   }
-  
+
   // Reset counters if windows have passed
-  let postsInMinute = rateLimit.postsInMinute
-  let postsInHour = rateLimit.postsInHour
-  
-  if (rateLimit.minuteStart < minuteStart) {
+  let postsInMinute = rateLimit.posts_in_minute
+  let postsInHour = rateLimit.posts_in_hour
+
+  if (rateLimit.minute_start < minuteStart) {
     postsInMinute = 0
   }
-  if (rateLimit.hourStart < hourStart) {
+  if (rateLimit.hour_start < hourStart) {
     postsInHour = 0
   }
-  
+
   return {
-    postsInMinute,
-    postsInHour,
-    postsInDay: rateLimit.postsInDay,
-    minuteReset: new Date(minuteStart.getTime() + 60000),
-    hourReset: new Date(hourStart.getTime() + 3600000),
-    dayReset: new Date(today.getTime() + 24 * 60 * 60 * 1000)
+    posts_in_minute: postsInMinute,
+    posts_in_hour: postsInHour,
+    posts_in_day: rateLimit.posts_in_day,
+    minute_reset: new Date(minuteStart.getTime() + 60000),
+    hour_reset: new Date(hourStart.getTime() + 3600000),
+    day_reset: new Date(today.getTime() + 24 * 60 * 60 * 1000)
   }
 }
 
-export async function checkRateLimit(userId: number): Promise<{ 
+interface RateLimitCheck {
   allowed: boolean
   limitType?: 'minute' | 'hour' | 'day'
   resetTime?: Date
-}> {
+}
+
+export async function checkRateLimit(userId: number): Promise<RateLimitCheck> {
   const state = await getRateLimitState(userId)
-  
-  if (state.postsInMinute >= RATE_LIMITS.perMinute) {
-    return { allowed: false, limitType: 'minute', resetTime: state.minuteReset }
+
+  // Check minute limit
+  if (state.posts_in_minute >= RATE_LIMITS.perMinute) {
+    return {
+      allowed: false,
+      limitType: 'minute',
+      resetTime: state.minute_reset
+    }
   }
-  
-  if (state.postsInHour >= RATE_LIMITS.perHour) {
-    return { allowed: false, limitType: 'hour', resetTime: state.hourReset }
+
+  // Check hour limit
+  if (state.posts_in_hour >= RATE_LIMITS.perHour) {
+    return {
+      allowed: false,
+      limitType: 'hour',
+      resetTime: state.hour_reset
+    }
   }
-  
-  if (state.postsInDay >= RATE_LIMITS.perDay) {
-    return { allowed: false, limitType: 'day', resetTime: state.dayReset }
+
+  // Check day limit
+  if (state.posts_in_day >= RATE_LIMITS.perDay) {
+    return {
+      allowed: false,
+      limitType: 'day',
+      resetTime: state.day_reset
+    }
   }
-  
+
   return { allowed: true }
 }
 
@@ -99,66 +115,66 @@ export async function incrementRateLimit(userId: number): Promise<void> {
   const minuteStart = new Date(now.getTime() - (now.getTime() % 60000))
   const hourStart = new Date(now.getTime() - (now.getTime() % 3600000))
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  
-  const existing = await prisma.rateLimit.findUnique({
+
+  const existing = await prisma.rate_limits.findUnique({
     where: {
       unique_user_date: {
-        userId,
-        dateRecorded: today
+        user_id: userId,
+        date_recorded: today
       }
     }
   })
-  
+
   if (!existing) {
-    await prisma.rateLimit.create({
+    await prisma.rate_limits.create({
       data: {
-        userId,
-        minuteStart,
-        hourStart,
-        dateRecorded: today,
-        postsInMinute: 1,
-        postsInHour: 1,
-        postsInDay: 1
+        user_id: userId,
+        minute_start: minuteStart,
+        hour_start: hourStart,
+        date_recorded: today,
+        posts_in_minute: 1,
+        posts_in_hour: 1,
+        posts_in_day: 1
       }
     })
-    return
+  } else {
+    // Determine which counters to reset
+    const resetMinute = existing.minute_start < minuteStart
+    const resetHour = existing.hour_start < hourStart
+
+    await prisma.rate_limits.update({
+      where: {
+        unique_user_date: {
+          user_id: userId,
+          date_recorded: today
+        }
+      },
+      data: {
+        posts_in_minute: resetMinute ? 1 : { increment: 1 },
+        posts_in_hour: resetHour ? 1 : { increment: 1 },
+        posts_in_day: { increment: 1 },
+        ...(resetMinute && { minute_start: minuteStart }),
+        ...(resetHour && { hour_start: hourStart })
+      }
+    })
   }
-  
-  const updates: Record<string, Date | number> = {
-    postsInMinute: existing.postsInMinute + 1,
-    postsInHour: existing.postsInHour + 1,
-    postsInDay: existing.postsInDay + 1
-  }
-  
-  if (existing.minuteStart < minuteStart) {
-    updates.minuteStart = minuteStart
-    updates.postsInMinute = 1
-  }
-  
-  if (existing.hourStart < hourStart) {
-    updates.hourStart = hourStart
-    updates.postsInHour = 1
-  }
-  
-  await prisma.rateLimit.update({
-    where: { id: existing.id },
-    data: updates
-  })
 }
 
 export function formatRateLimitMessage(
-  limitType: 'minute' | 'hour' | 'day', 
-  resetTime: Date, 
+  limitType: 'minute' | 'hour' | 'day',
+  resetTime: Date,
   state: RateLimitState
 ): string {
-  const now = new Date()
-  const minutesUntilReset = Math.ceil((resetTime.getTime() - now.getTime()) / 60000)
-  
-  const messages = {
-    minute: `Rate limit exceeded: ${state.postsInMinute}/${RATE_LIMITS.perMinute} posts per minute. Try again in ${minutesUntilReset} minute${minutesUntilReset > 1 ? 's' : ''}.`,
-    hour: `Rate limit exceeded: ${state.postsInHour}/${RATE_LIMITS.perHour} posts per hour. Try again in ${Math.ceil(minutesUntilReset / 60)} hour${Math.ceil(minutesUntilReset / 60) > 1 ? 's' : ''}.`,
-    day: `Rate limit exceeded: ${state.postsInDay}/${RATE_LIMITS.perDay} posts per day. Try again tomorrow.`
+  const waitMinutes = Math.ceil((resetTime.getTime() - Date.now()) / 60000)
+
+  switch (limitType) {
+    case 'minute':
+      return `Rate limit exceeded. You can post ${RATE_LIMITS.perMinute} times per minute. Please wait ${waitMinutes} minute(s).`
+    case 'hour':
+      return `Rate limit exceeded. You can post ${RATE_LIMITS.perHour} times per hour. Please wait ${waitMinutes} minute(s).`
+    case 'day':
+      return `Rate limit exceeded. You can post ${RATE_LIMITS.perDay} times per day. Please try again tomorrow.`
+    default:
+      return 'Rate limit exceeded. Please try again later.'
   }
-  
-  return messages[limitType]
 }

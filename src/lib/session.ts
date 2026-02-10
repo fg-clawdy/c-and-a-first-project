@@ -10,16 +10,16 @@ export interface Session {
 export async function createSession(userId: number, username: string): Promise<string> {
   const token = crypto.randomUUID()
   const expiresAt = new Date(Date.now() + SESSION_DURATION)
-  
-  await prisma.user.update({
+
+  await prisma.users.update({
     where: { id: userId },
     data: {
-      lastLoginAt: new Date(),
-      failedLoginAttempts: 0,
-      lockedUntil: null
+      last_login_at: new Date(),
+      failed_login_attempts: 0,
+      locked_until: null
     }
   })
-  
+
   const cookieStore = await cookies()
   cookieStore.set('session_token', token, {
     httpOnly: true,
@@ -28,7 +28,7 @@ export async function createSession(userId: number, username: string): Promise<s
     expires: expiresAt,
     path: '/'
   })
-  
+
   cookieStore.set('user_id', userId.toString(), {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -36,7 +36,7 @@ export async function createSession(userId: number, username: string): Promise<s
     expires: expiresAt,
     path: '/'
   })
-  
+
   cookieStore.set('username', username, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -44,7 +44,7 @@ export async function createSession(userId: number, username: string): Promise<s
     expires: expiresAt,
     path: '/'
   })
-  
+
   return token
 }
 
@@ -52,11 +52,11 @@ export async function getSession(): Promise<Session | null> {
   const cookieStore = await cookies()
   const userId = cookieStore.get('user_id')?.value
   const username = cookieStore.get('username')?.value
-  
+
   if (!userId || !username) {
     return null
   }
-  
+
   return {
     userId: parseInt(userId),
     username

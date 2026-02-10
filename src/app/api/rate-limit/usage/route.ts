@@ -10,9 +10,9 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       data: {
-        postsInMinute: state.postsInMinute,
-        postsInHour: state.postsInHour,
-        postsInDay: state.postsInDay,
+        postsInMinute: state.posts_in_minute,
+        postsInHour: state.posts_in_hour,
+        postsInDay: state.posts_in_day,
         minuteLimit: RATE_LIMITS.perMinute,
         hourLimit: RATE_LIMITS.perHour,
         dayLimit: RATE_LIMITS.perDay

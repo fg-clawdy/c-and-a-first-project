@@ -32,23 +32,23 @@ export async function GET(request: NextRequest) {
     }
 
     // Get posts with author info
-    const posts = await prisma.post.findMany({
+    const posts = await prisma.posts.findMany({
       skip,
       take: limit,
-      orderBy: { createdAt: 'desc' },
+      orderBy: { created_at: 'desc' },
       include: {
         user: {
           select: { username: true, id: true }
         }
       }
-    }) as PostWithUser[]
+    }) 
 
-    const formattedPosts = posts.map((post: PostWithUser) => ({
+    const formattedPosts = posts.map((post: any) => ({
       id: post.id,
       content: post.content,
       author: post.user.username,
-      userId: post.user.id,
-      createdAt: post.createdAt.toISOString()
+      userId: post.user_id,
+      createdAt: post.created_at.toISOString()
     }))
 
     return NextResponse.json({
@@ -103,9 +103,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Create post
-    const post = await prisma.post.create({
+    const post = await prisma.posts.create({
       data: {
-        userId: session.userId,
+        user_id: session.userId,
         content
       },
       include: {
@@ -113,17 +113,17 @@ export async function POST(request: NextRequest) {
           select: { username: true, id: true }
         }
       }
-    }) as PostWithUser
+    }) 
 
     // Increment rate limit
     await incrementRateLimit(session.userId)
 
     const newPost = {
-      id: post.id,
-      content: post.content,
-      author: post.user.username,
-      userId: post.user.id,
-      createdAt: post.createdAt.toISOString()
+      id: (post as any).id,
+      content: (post as any).content,
+      author: (post as any).user.username,
+      userId: (post as any).user_id,
+      createdAt: (post as any).created_at.toISOString()
     }
 
     return NextResponse.json({

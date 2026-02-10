@@ -17,13 +17,10 @@ export async function POST(request: NextRequest) {
 
     // Store timing baseline for dummy operation (prevents username enumeration via timing)
 
-    // Find user (case-insensitive)
-    const user = await prisma.user.findFirst({
+    // Find user (case-insensitive via lowercase)
+    const user = await prisma.users.findFirst({
       where: {
-        username: {
-          equals: username,
-          mode: 'insensitive'
-        }
+        username: username.toLowerCase().trim()
       }
     })
 
@@ -36,8 +33,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if account is locked
-    if (user.lockedUntil && user.lockedUntil > new Date()) {
-      const minutesLeft = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60000)
+    if (user.locked_until && user.locked_until > new Date()) {
+      const minutesLeft = Math.ceil((user.locked_until.getTime() - Date.now()) / 60000)
       return NextResponse.json(
         { success: false, error: `Account is locked. Try again in ${minutesLeft} minute(s).` },
         { status: 403 }
@@ -45,18 +42,18 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify password
-    const validPassword = await verifyPassword(password, user.passwordHash)
+    const validPassword = await verifyPassword(password, user.password_hash)
     if (!validPassword) {
       // Increment failed attempts
-      const failedAttempts = user.failedLoginAttempts + 1
+      const failedAttempts = user.failed_login_attempts + 1
       // Lock on 6th failed attempt: changed >= to > for correct threshold
       const shouldLock = failedAttempts > MAX_LOGIN_ATTEMPTS
 
-      await prisma.user.update({
+      await prisma.users.update({
         where: { id: user.id },
         data: {
-          failedLoginAttempts: failedAttempts,
-          lockedUntil: shouldLock ? new Date(Date.now() + LOCKOUT_DURATION) : null
+          failed_login_attempts: failedAttempts,
+          locked_until: shouldLock ? new Date(Date.now() + LOCKOUT_DURATION) : null
         }
       })
 
@@ -77,9 +74,9 @@ export async function POST(request: NextRequest) {
     await createSession(user.id, user.username)
 
     // Reset failed attempts on successful login
-    await prisma.user.update({
+    await prisma.users.update({
       where: { id: user.id },
-      data: { failedLoginAttempts: 0, lockedUntil: null }
+      data: { failed_login_attempts: 0, locked_until: null }
     })
 
     return NextResponse.json({

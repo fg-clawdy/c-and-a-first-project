@@ -13,7 +13,7 @@ export async function DELETE(
     const session = await requireAuth()
 
     // Get post
-    const post = await prisma.post.findUnique({
+    const post = await prisma.posts.findUnique({
       where: { id: postId }
     })
 
@@ -25,7 +25,7 @@ export async function DELETE(
     }
 
     // Check ownership
-    if (post.userId !== session.userId) {
+    if (post.user_id !== session.userId) {
       return NextResponse.json(
         { success: false, error: 'You can only delete your own posts' },
         { status: 403 }
@@ -33,7 +33,7 @@ export async function DELETE(
     }
 
     // Delete post
-    await prisma.post.delete({
+    await prisma.posts.delete({
       where: { id: postId }
     })
 
