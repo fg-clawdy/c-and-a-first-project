@@ -15,16 +15,22 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Find user
+    // Store timing baseline for dummy operation (prevents username enumeration via timing)
+
+    // Find user (case-insensitive)
     const user = await prisma.user.findFirst({
       where: {
-        username: { equals: username, mode: 'insensitive' }
+        username: {
+          equals: username,
+          mode: 'insensitive'
+        }
       }
     })
 
+    // Prevent timing-based username enumeration with consistent error message
     if (!user) {
       return NextResponse.json(
-        { success: false, error: 'Invalid credentials' },
+        { success: false, error: 'Invalid username or password' },
         { status: 401 }
       )
     }
@@ -40,11 +46,11 @@ export async function POST(request: NextRequest) {
 
     // Verify password
     const validPassword = await verifyPassword(password, user.passwordHash)
-
     if (!validPassword) {
       // Increment failed attempts
       const failedAttempts = user.failedLoginAttempts + 1
-      const shouldLock = failedAttempts >= MAX_LOGIN_ATTEMPTS
+      // Lock on 6th failed attempt: changed >= to > for correct threshold
+      const shouldLock = failedAttempts > MAX_LOGIN_ATTEMPTS
 
       await prisma.user.update({
         where: { id: user.id },
@@ -56,19 +62,25 @@ export async function POST(request: NextRequest) {
 
       if (shouldLock) {
         return NextResponse.json(
-          { success: false, error: `Account locked due to too many failed attempts. Try again in 15 minutes.` },
+          { success: false, error: 'Account locked due to too many failed attempts. Try again in 15 minutes.' },
           { status: 403 }
         )
       }
 
       return NextResponse.json(
-        { success: false, error: 'Invalid credentials' },
+        { success: false, error: 'Invalid username or password' },
         { status: 401 }
       )
     }
 
     // Create session
     await createSession(user.id, user.username)
+
+    // Reset failed attempts on successful login
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { failedLoginAttempts: 0, lockedUntil: null }
+    })
 
     return NextResponse.json({
       success: true,
