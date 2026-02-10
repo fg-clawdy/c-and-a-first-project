@@ -3,6 +3,7 @@
 
 generator client {
   provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
@@ -10,52 +11,52 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id                   Int       @id @default(autoincrement())
-  username             String    @unique @db.VarChar(50)
-  email                String    @unique @db.VarChar(255)
-  passwordHash         String    @db.VarChar(255)
-  secretQuestion       String    @db.VarChar(255)
-  secretAnswerHash     String    @db.VarChar(255)
-  createdAt            DateTime  @default(now())
-  lastLoginAt          DateTime?
-  failedLoginAttempts  Int       @default(0)
-  lockedUntil          DateTime?
+model users {
+  id                  Int          @id @default(autoincrement())
+  username            String       @unique @db.VarChar(50)
+  email               String       @unique @db.VarChar(255)
+  password_hash       String       @db.VarChar(255)
+  secret_question     String       @db.VarChar(255)
+  secret_answer_hash  String       @db.VarChar(255)
+  created_at          DateTime     @default(now()) @map("created_at")
+  last_login_at       DateTime? @map("last_login_at")
+  failed_login_attempts Int        @default(0) @map("failed_login_attempts")
+  locked_until        DateTime? @map("locked_until")
   
-  posts       Post[]
-  rateLimits  RateLimit[]
+  posts       posts[]
+  rate_limits rate_limits[]
   
   @@index([username])
   @@index([email])
-  @@map("users")
+  @map("users")
 }
 
-model Post {
-  id        Int      @id @default(autoincrement())
-  userId    Int      @map("user_id")
-  content   String   @db.VarChar(1000)
-  createdAt DateTime @default(now()) @map("created_at")
+model posts {
+  id          Int      @id @default(autoincrement())
+  user_id     Int      @map("user_id")
+  content     String   @db.VarChar(1000)
+  created_at  DateTime @default(now()) @map("created_at")
   
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user users @relation(fields: [user_id], references: [id], onDelete: Cascade)
   
-  @@index([createdAt(sort: Desc)])
-  @@index([userId])
-  @@map("posts")
+  @@index([created_at(sort: Desc)])
+  @@index([user_id])
+  @map("posts")
 }
 
-model RateLimit {
-  id            Int      @id @default(autoincrement())
-  userId        Int      @map("user_id")
-  minuteStart   DateTime @map("minute_start")
-  postsInMinute Int      @default(0) @map("posts_in_minute")
-  hourStart     DateTime @map("hour_start")
-  postsInHour   Int      @default(0) @map("posts_in_hour")
-  dateRecorded  DateTime @map("date_recorded") @db.Date
-  postsInDay    Int      @default(0) @map("posts_in_day")
+model rate_limits {
+  id              Int      @id @default(autoincrement())
+  user_id         Int      @map("user_id")
+  minute_start    DateTime @map("minute_start")
+  posts_in_minute Int      @default(0) @map("posts_in_minute")
+  hour_start      DateTime @map("hour_start")
+  posts_in_hour   Int      @default(0) @map("posts_in_hour")
+  date_recorded   DateTime @map("date_recorded") @db.Date
+  posts_in_day    Int      @default(0) @map("posts_in_day")
   
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user users @relation(fields: [user_id], references: [id], onDelete: Cascade)
   
-  @@unique([userId, dateRecorded], name: "unique_user_date")
-  @@index([userId, dateRecorded])
-  @@map("rate_limits")
+  @@unique([user_id, date_recorded], name: "unique_user_date")
+  @@index([user_id, date_recorded])
+  @map("rate_limits")
 }

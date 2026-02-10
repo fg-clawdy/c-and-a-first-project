@@ -3,6 +3,17 @@ import { prisma } from '@/lib/prisma'
 import { requireAuth, getSession } from '@/lib/session'
 import { checkRateLimit, incrementRateLimit, formatRateLimitMessage, getRateLimitState } from '@/lib/rate-limit'
 
+interface PostWithUser {
+  id: number
+  content: string
+  userId: number
+  createdAt: Date
+  user: {
+    id: number
+    username: string
+  }
+}
+
 // GET /api/posts - Get posts (paginated)
 export async function GET(request: NextRequest) {
   try {
@@ -30,9 +41,9 @@ export async function GET(request: NextRequest) {
           select: { username: true, id: true }
         }
       }
-    })
+    }) as PostWithUser[]
 
-    const formattedPosts = posts.map(post => ({
+    const formattedPosts = posts.map((post: PostWithUser) => ({
       id: post.id,
       content: post.content,
       author: post.user.username,
@@ -102,7 +113,7 @@ export async function POST(request: NextRequest) {
           select: { username: true, id: true }
         }
       }
-    })
+    }) as PostWithUser
 
     // Increment rate limit
     await incrementRateLimit(session.userId)
